@@ -6,8 +6,8 @@
         yum update -y
         yum install -y docker
         systemctl enable --now docker
-        setenforce 0
-        sed -i 's/^SELINUX=enforcing$/SELINUX=permissive/' /etc/selinux/config
+        setenforce 0 || true
+        sed -i 's/^SELINUX=enforcing$/SELINUX=permissive/' /etc/selinux/config || true
         cat <<EOF | tee /etc/yum.repos.d/kubernetes.repo
         [kubernetes]
         name=Kubernetes
@@ -19,7 +19,9 @@
         EOF
         yum install -y kubelet kubeadm kubectl --disableexcludes=kubernetes
         systemctl enable --now kubelet
-        kubeadm init --apiserver-advertise-address={{ ansible_default_ipv4.address }} --pod-network-cidr=192.168.0.0/16
+        if [ ! -f /etc/kubernetes/admin.conf ]; then
+          kubeadm init --apiserver-advertise-address={{ ansible_default_ipv4.address }} --pod-network-cidr=192.168.0.0/16
+        fi
 
     - name: Configure kubectl for ec2-user
       shell: |
