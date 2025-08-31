@@ -1,5 +1,7 @@
 - hosts: workers
   become: yes
+  vars:
+    kubeadm_join_command: "{{ kubeadm_join_command }}"  
   tasks:
     - name: Install Docker, kubeadm, kubelet
       shell: |
@@ -21,4 +23,4 @@
         systemctl enable --now kubelet
 
     - name: Join worker to cluster
-      shell: "{{ hostvars[groups['master'][0]].kubeadm_join_command }}"
+      shell: "{{ kubeadm_join_command }}"

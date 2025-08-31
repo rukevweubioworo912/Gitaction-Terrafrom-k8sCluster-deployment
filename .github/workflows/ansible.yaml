@@ -2,8 +2,8 @@ name: Ansible Only Deployment
 
 on:
   push:
-     branches:
-        - main 
+    branches:
+      - main
 
 jobs:
   ansible_deploy:
@@ -38,7 +38,6 @@ jobs:
         run: |
           echo "[master]" > inventory
           echo "$MASTER_IP ansible_user=ec2-user ansible_ssh_private_key_file=~/.ssh/id_rsa" >> inventory
-          echo "" >> inventory
           echo "[workers]" >> inventory
           for ip in $(echo "$WORKER_IPS" | jq -r '.[]'); do
             echo "$ip ansible_user=ec2-user ansible_ssh_private_key_file=~/.ssh/id_rsa" >> inventory
@@ -66,7 +65,7 @@ jobs:
 
       - name: Run Ansible Playbook on Workers
         run: |
-          ansible-playbook -i inventory ./k8Cluster/Ansible/worker.yaml --extra-vars "master_join='$KUBEADM_JOIN_COMMAND'"
+          ansible-playbook -i inventory ./k8Cluster/Ansible/worker.yaml --extra-vars "kubeadm_join_command='$KUBEADM_JOIN_COMMAND'"
         env:
           ANSIBLE_HOST_KEY_CHECKING: "False"
 
