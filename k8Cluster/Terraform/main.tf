@@ -159,7 +159,7 @@ resource "aws_instance" "k8s_master" {
   subnet_id           = aws_subnet.master.id
   security_groups     = [aws_security_group.k8s_cluster_sg.id]
   iam_instance_profile = aws_iam_instance_profile.ec2_cloudwatch_profile.name
-  user_data           = file("cloudwatchscript.sh")
+ 
 
   tags = {
     Name = "k8s-master"
@@ -174,7 +174,7 @@ resource "aws_instance" "k8s_worker" {
   subnet_id           = element([aws_subnet.worker1.id, aws_subnet.worker2.id], count.index)
   security_groups     = [aws_security_group.k8s_cluster_sg.id]
   iam_instance_profile = aws_iam_instance_profile.ec2_cloudwatch_profile.name
-  user_data           = file("cloudwatchscript.sh")
+  
 
   tags = {
     Name = "k8s-worker-${count.index + 1}"
