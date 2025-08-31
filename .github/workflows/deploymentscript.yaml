@@ -113,11 +113,19 @@ jobs:
           echo "inventory = ./inventory" >> ansible.cfg
 
       - name: Run Ansible Playbook on Master
-        run: ansible-playbook -i inventory ./ansible/master.yaml
+        id: run_master
+        run: |
+          ansible-playbook -i inventory ./ansible/master.yaml --extra-vars "output_file=/tmp/master_output.json"
         env:
           ANSIBLE_HOST_KEY_CHECKING: "False"
 
+      - name: Get Output from Master
+        id: master_output
+        run: |
+          MASTER_JOIN=$(ssh -i ~/.ssh/id_rsa ec2-user@${{ needs.deploy-terraform.outputs.master_ip }} "cat /tmp/master_output.json")
+          echo "master_join=$MASTER_JOIN" >> "$GITHUB_OUTPUT"
+
       - name: Run Ansible Playbook on Workers
-        run: ansible-playbook -i inventory ./ansible/workers.yaml
+        run: ansible-playbook -i inventory ./ansible/workers.yaml --extra-vars "master_join=${{ steps.master_output.outputs.master_join }}"
         env:
           ANSIBLE_HOST_KEY_CHECKING: "False"
