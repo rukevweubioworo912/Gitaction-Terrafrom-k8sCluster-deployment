@@ -25,6 +25,7 @@ jobs:
 
       - name: Copy master setup script from ansible folder
         run: |
+          ls -la
           cp k8Cluster/Ansible/master.sh ./master.sh
           chmod +x ./master.sh
 
