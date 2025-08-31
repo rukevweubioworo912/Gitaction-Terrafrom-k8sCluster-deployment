@@ -1,0 +1,74 @@
+ansible_deploy:
+  runs-on: ubuntu-latest
+  env:
+    MASTER_IP: 13.223.77.209
+    WORKER_IPS: '["3.86.11.156","50.17.11.136"]'
+    KUBEADM_JOIN_COMMAND: "kubeadm join 10.0.1.160:6443 --token <token> --discovery-token-ca-cert-hash sha256:<hash>"
+    SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+  steps:
+    - name: Checkout source code
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.x'
+
+    - name: Install Ansible and dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y ansible sshpass jq netcat-openbsd
+        pip install boto3
+
+    - name: Add SSH Key
+      run: |
+        mkdir -p ~/.ssh
+        echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+
+    - name: Create Inventory for Master and Workers
+      run: |
+        echo "[master]" > inventory
+        echo "$MASTER_IP ansible_user=ec2-user ansible_ssh_private_key_file=~/.ssh/id_rsa" >> inventory
+        echo "" >> inventory
+        echo "[workers]" >> inventory
+        for ip in $(echo "$WORKER_IPS" | jq -r '.[]'); do
+          echo "$ip ansible_user=ec2-user ansible_ssh_private_key_file=~/.ssh/id_rsa" >> inventory
+        done
+
+    - name: Ansible Config
+      run: |
+        echo "[defaults]" > ansible.cfg
+        echo "host_key_checking = False" >> ansible.cfg
+        echo "inventory = ./inventory" >> ansible.cfg
+
+    - name: Install Python 3.8 on all nodes
+      run: |
+        ansible all -i inventory -m raw -a "sudo amazon-linux-extras enable python3.8 && sudo yum install -y python3.8" -u ec2-user --private-key ~/.ssh/id_rsa
+
+    - name: Update inventory to use Python 3.8
+      run: |
+        sed -i 's|ansible_ssh_private_key_file|ansible_python_interpreter=/usr/bin/python3.8 ansible_ssh_private_key_file|' inventory
+
+    - name: Run Ansible Playbook on Master
+      run: |
+        ansible-playbook -i inventory ./k8Cluster/Ansible/master.yaml --extra-vars "output_file=/tmp/master_output.json"
+      env:
+        ANSIBLE_HOST_KEY_CHECKING: "False"
+
+    - name: Run Ansible Playbook on Workers
+      run: |
+        ansible-playbook -i inventory ./k8Cluster/Ansible/worker.yaml --extra-vars "master_join='$KUBEADM_JOIN_COMMAND'"
+      env:
+        ANSIBLE_HOST_KEY_CHECKING: "False"
+
+    - name: Verify Kubernetes cluster nodes are Ready
+      run: |
+        echo "Waiting for all Kubernetes nodes to be Ready..."
+        until ssh -i ~/.ssh/id_rsa ec2-user@$MASTER_IP "kubectl get nodes --no-headers | awk '{print \$2}' | grep -q 'Ready'" ; do
+          echo "Nodes not Ready yet, waiting 10s..."
+          sleep 10
+        done
+        echo "All nodes are Ready!"
+      env:
+        ANSIBLE_HOST_KEY_CHECKING: "False"
