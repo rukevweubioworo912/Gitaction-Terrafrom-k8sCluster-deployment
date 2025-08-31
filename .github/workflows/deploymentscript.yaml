@@ -111,7 +111,7 @@ jobs:
       - name: Run Ansible Playbook on Master
         id: run_master
         run: |
-          ansible-playbook -i inventory ./k8Cluster/ansible/master.yaml --extra-vars "output_file=/tmp/master_output.json"
+          ansible-playbook -i inventory ./k8Cluster/Ansible/master.yaml --extra-vars "output_file=/tmp/master_output.json"
         env:
           ANSIBLE_HOST_KEY_CHECKING: "False"
 
@@ -123,6 +123,6 @@ jobs:
 
       - name: Run Ansible Playbook on Workers
         run: |
-          ansible-playbook -i inventory ./k8Cluster/ansible/workers.yaml --extra-vars "master_join=${{ steps.master_output.outputs.master_join }}"
+          ansible-playbook -i inventory ./k8Cluster/Ansible/worker.yaml --extra-vars "master_join=${{ steps.master_output.outputs.master_join }}"
         env:
           ANSIBLE_HOST_KEY_CHECKING: "False"
