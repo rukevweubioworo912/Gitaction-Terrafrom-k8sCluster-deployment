@@ -1,39 +1,45 @@
----
-- hosts: workers
-  become: yes
-  tasks:
-    - name: Install Docker, kubeadm, kubelet
-      yum:
-        name:
-          - docker
-          - kubelet
-          - kubeadm
-        state: present
-        enablerepo: kubernetes
-        disable_excludes: kubernetes
-        update_cache: yes
+#!/bin/bash
+set -e
 
-    - name: Enable and start Docker
-      systemd:
-        name: docker
-        enabled: yes
-        state: started
+echo "🚀 Starting Worker Node Setup"
 
-    - name: Disable SELinux
-      selinux:
-        state: permissive
+# Install Docker
+sudo yum update -y
+sudo yum install -y docker
+sudo systemctl enable docker --now
 
-    - name: Enable and start kubelet
-      systemd:
-        name: kubelet
-        enabled: yes
-        state: started
+# Disable SELinux
+sudo setenforce 0 || true
+sudo sed -i 's/^SELINUX=enforcing$/SELINUX=permissive/' /etc/selinux/config || true
 
-    - name: Join worker node to cluster
-      shell: "{{ kubeadm_join_command }}"
-      args:
-        creates: /etc/kubernetes/kubelet.conf
-      register: join_result
-      until: join_result is succeeded
-      retries: 5
-      delay: 10
+# Add Kubernetes repo
+cat <<EOF | sudo tee /etc/yum.repos.d/kubernetes.repo
+[kubernetes]
+name=Kubernetes
+baseurl=https://pkgs.k8s.io/core:/stable:/v1.29/rpm/
+enabled=1
+gpgcheck=1
+gpgkey=https://pkgs.k8s.io/core:/stable:/v1.29/rpm/repodata/repomd.xml.key
+exclude=kubelet kubeadm kubectl cri-tools kubernetes-cni
+EOF
+
+# Install kubelet and kubeadm
+sudo yum install -y kubelet kubeadm --disableexcludes=kubernetes
+sudo systemctl enable kubelet --now
+
+# Wait for join command to be passed
+JOIN_CMD="\$1"
+if [ -z "\$JOIN_CMD" ]; then
+  echo "❌ No join command provided!"
+  exit 1
+fi
+
+# Join the cluster (only if not already joined)
+if [ ! -f /etc/kubernetes/kubelet.conf ]; then
+  echo "👉 Joining cluster with: \$JOIN_CMD"
+  eval "\$JOIN_CMD"
+else
+  echo "ℹ️ Already joined to cluster."
+fi
+
+echo "✅ Worker node joined successfully!"

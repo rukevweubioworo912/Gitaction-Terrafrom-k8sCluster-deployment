@@ -1,4 +1,4 @@
-name: Deploy Kubernetes Cluster
+name: Deploy K8s Cluster with Bash Scripts
 
 on:
   push:
@@ -6,94 +6,69 @@ on:
       - main
 
 jobs:
-  ansible_deploy:
+  deploy:
     runs-on: ubuntu-latest
     env:
-      # 🔽 Hardcoded IPs - Edit these as needed
       MASTER_IP: 13.223.77.209
       WORKER_IPS: '["3.86.11.156", "50.17.11.136"]'
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ansible sshpass jq netcat-openbsd
-          pip install boto3
-
-      - name: Add SSH Private Key
+      - name: Set up SSH
         run: |
           mkdir -p ~/.ssh
-          # 🔽 Paste your private key here (or still use secret just for key)
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-
-      - name: Add known_hosts
-        run: |
           ssh-keyscan $MASTER_IP $(echo "$WORKER_IPS" | jq -r '.[]') >> ~/.ssh/known_hosts
           chmod 644 ~/.ssh/known_hosts
 
-      - name: Create Ansible Inventory
+      - name: Copy master setup script from ansible folder
         run: |
-          echo "[master]" > inventory
-          echo "$MASTER_IP ansible_user=ec2-user ansible_ssh_private_key_file=~/.ssh/id_rsa" >> inventory
-          echo "[workers]" >> inventory
-          for ip in $(echo "$WORKER_IPS" | jq -r '.[]'); do
-            echo "$ip ansible_user=ec2-user ansible_ssh_private_key_file=~/.ssh/id_rsa" >> inventory
-          done
+          cp k8Cluster/Ansible/master.sh ./master.sh
+          chmod +x ./master.sh
 
-      - name: Create ansible.cfg
+      - name: Run master setup on EC2
         run: |
-          cat > ansible.cfg <<EOF
-          [defaults]
-          host_key_checking = False
-          inventory = ./inventory
-          forks = 10
-          EOF
+          scp -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ./master.sh ec2-user@$MASTER_IP:/home/ec2-user/master.sh
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ec2-user@$MASTER_IP \
+            "chmod +x ~/master.sh && sudo ~/master.sh"
 
-      - name: Install Python 3.8 on all nodes
+      - name: Retrieve join command from master
+        id: get_join
         run: |
-          ansible all -m raw -a "test -f /usr/bin/python3.8 || (sudo amazon-linux-extras enable python3.8 && sudo yum install -y python3.8)"
-
-      - name: Update inventory to use Python 3.8
-        run: |
-          sed -i 's/ansible_ssh_private_key_file/ansible_python_interpreter=\/usr\/bin\/python3.8 ansible_ssh_private_key_file/' inventory
-
-      - name: Run Master Playbook
-        run: |
-          ansible-playbook -i inventory k8Cluster/Ansible/master.yaml
-
-      - name: Retrieve join command from master output
-        id: get_join_cmd
-        run: |
-          # Ansible master playbook writes this file to localhost
-          if [ -f /tmp/kubeadm_join_command.sh ]; then
-            JOIN_CMD=$(cat /tmp/kubeadm_join_command.sh)
-            echo "JOIN_CMD=$JOIN_CMD" >> $GITHUB_OUTPUT
-            echo " Retrieved join command: $JOIN_CMD"
-          else
-            echo "Failed: /tmp/kubeadm_join_command.sh not found!"
+          JOIN_CMD=$(ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ec2-user@$MASTER_IP \
+            "cat ~/kubeadm-join-command.sh" 2>/dev/null || echo "")
+          if [ -z "$JOIN_CMD" ]; then
+            echo "❌ Failed to retrieve join command!"
             exit 1
           fi
+          echo "JOIN_CMD=$JOIN_CMD" >> $GITHUB_OUTPUT
+          echo "✅ Retrieved join command: $JOIN_CMD"
 
-      - name: Run Worker Playbook
+      - name: Copy worker setup script from ansible folder
         run: |
-          ansible-playbook -i inventory k8Cluster/Ansible/worker.yaml \
-            --extra-vars "kubeadm_join_command='${{ steps.get_join_cmd.outputs.JOIN_CMD }}'"
+          cp k8Cluster/Ansible/worker.sh ./worker.sh
+          chmod +x ./worker.sh
 
-      - name: Verify Kubernetes Nodes are Ready
+      - name: Deploy and run worker setup on all workers
         run: |
-          echo "Waiting for all nodes to be Ready..."
+          JOIN_CMD='${{ steps.get_join.outputs.JOIN_CMD }}'
+          for ip in $(echo "$WORKER_IPS" | jq -r '.[]'); do
+            echo "🔧 Deploying to worker: $ip"
+            scp -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ./worker.sh ec2-user@$ip:/home/ec2-user/worker.sh
+            ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ec2-user@$ip \
+              "chmod +x ~/worker.sh && ~/worker.sh '$JOIN_CMD'"
+          done
+
+      - name: Verify Kubernetes cluster nodes
+        run: |
+          echo "⏳ Waiting for all nodes to be Ready..."
+          MASTER_IP="$MASTER_IP"
           until ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ec2-user@$MASTER_IP \
-            "kubectl get nodes" | grep -q "Ready"; do
-            echo "⏳ Nodes not ready yet, waiting 10s..."
+            "kubectl get nodes 2>/dev/null | grep -q 'Ready'" ; do
+            echo "👉 Nodes not ready yet... waiting 10s"
             sleep 10
           done
-          echo "✅ All nodes are Ready!"
+          echo "✅ Cluster is ready!"
           ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ec2-user@$MASTER_IP "kubectl get nodes"
