@@ -1,26 +1,39 @@
+---
 - hosts: workers
   become: yes
-  vars:
-    kubeadm_join_command: "{{ kubeadm_join_command }}"  
   tasks:
     - name: Install Docker, kubeadm, kubelet
-      shell: |
-        yum update -y
-        yum install -y docker
-        systemctl enable --now docker
-        setenforce 0
-        sed -i 's/^SELINUX=enforcing$/SELINUX=permissive/' /etc/selinux/config
-        cat <<EOF | tee /etc/yum.repos.d/kubernetes.repo
-        [kubernetes]
-        name=Kubernetes
-        baseurl=https://pkgs.k8s.io/core:/stable:/v1.29/rpm/
-        enabled=1
-        gpgcheck=1
-        gpgkey=https://pkgs.k8s.io/core:/stable:/v1.29/rpm/repodata/repomd.xml.key
-        exclude=kubelet kubeadm kubectl cri-tools kubernetes-cni
-        EOF
-        yum install -y kubelet kubeadm --disableexcludes=kubernetes
-        systemctl enable --now kubelet
+      yum:
+        name:
+          - docker
+          - kubelet
+          - kubeadm
+        state: present
+        enablerepo: kubernetes
+        disable_excludes: kubernetes
+        update_cache: yes
 
-    - name: Join worker to cluster
+    - name: Enable and start Docker
+      systemd:
+        name: docker
+        enabled: yes
+        state: started
+
+    - name: Disable SELinux
+      selinux:
+        state: permissive
+
+    - name: Enable and start kubelet
+      systemd:
+        name: kubelet
+        enabled: yes
+        state: started
+
+    - name: Join worker node to cluster
       shell: "{{ kubeadm_join_command }}"
+      args:
+        creates: /etc/kubernetes/kubelet.conf
+      register: join_result
+      until: join_result is succeeded
+      retries: 5
+      delay: 10

@@ -1,4 +1,4 @@
-name: Ansible Only Deployment
+name: Deploy Kubernetes Cluster
 
 on:
   push:
@@ -9,32 +9,37 @@ jobs:
   ansible_deploy:
     runs-on: ubuntu-latest
     env:
+      # 🔽 Hardcoded IPs - Edit these as needed
       MASTER_IP: 13.223.77.209
-      WORKER_IPS: '["3.86.11.156","50.17.11.136"]'
-      KUBEADM_JOIN_COMMAND: "kubeadm join 10.0.1.160:6443 --token <token> --discovery-token-ca-cert-hash sha256:<hash>"
-      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      WORKER_IPS: '["3.86.11.156", "50.17.11.136"]'
     steps:
-      - name: Checkout source code
+      - name: Checkout code
         uses: actions/checkout@v3
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.x'
+          python-version: '3.11'
 
-      - name: Install Ansible and dependencies
+      - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y ansible sshpass jq netcat-openbsd
           pip install boto3
 
-      - name: Add SSH Key
+      - name: Add SSH Private Key
         run: |
           mkdir -p ~/.ssh
-          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+          # 🔽 Paste your private key here (or still use secret just for key)
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
 
-      - name: Create Inventory for Master and Workers
+      - name: Add known_hosts
+        run: |
+          ssh-keyscan $MASTER_IP $(echo "$WORKER_IPS" | jq -r '.[]') >> ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Create Ansible Inventory
         run: |
           echo "[master]" > inventory
           echo "$MASTER_IP ansible_user=ec2-user ansible_ssh_private_key_file=~/.ssh/id_rsa" >> inventory
@@ -43,39 +48,52 @@ jobs:
             echo "$ip ansible_user=ec2-user ansible_ssh_private_key_file=~/.ssh/id_rsa" >> inventory
           done
 
-      - name: Ansible Config
+      - name: Create ansible.cfg
         run: |
-          echo "[defaults]" > ansible.cfg
-          echo "host_key_checking = False" >> ansible.cfg
-          echo "inventory = ./inventory" >> ansible.cfg
+          cat > ansible.cfg <<EOF
+          [defaults]
+          host_key_checking = False
+          inventory = ./inventory
+          forks = 10
+          EOF
 
       - name: Install Python 3.8 on all nodes
         run: |
-          ansible all -i inventory -m raw -a "sudo amazon-linux-extras enable python3.8 && sudo yum install -y python3.8" -u ec2-user --private-key ~/.ssh/id_rsa
+          ansible all -m raw -a "test -f /usr/bin/python3.8 || (sudo amazon-linux-extras enable python3.8 && sudo yum install -y python3.8)"
 
       - name: Update inventory to use Python 3.8
         run: |
-          sed -i 's|ansible_ssh_private_key_file|ansible_python_interpreter=/usr/bin/python3.8 ansible_ssh_private_key_file|' inventory
+          sed -i 's/ansible_ssh_private_key_file/ansible_python_interpreter=\/usr\/bin\/python3.8 ansible_ssh_private_key_file/' inventory
 
-      - name: Run Ansible Playbook on Master
+      - name: Run Master Playbook
         run: |
-          ansible-playbook -i inventory ./k8Cluster/Ansible/master.yaml --extra-vars "output_file=/tmp/master_output.json"
-        env:
-          ANSIBLE_HOST_KEY_CHECKING: "False"
+          ansible-playbook -i inventory k8Cluster/Ansible/master.yaml
 
-      - name: Run Ansible Playbook on Workers
+      - name: Retrieve join command from master output
+        id: get_join_cmd
         run: |
-          ansible-playbook -i inventory ./k8Cluster/Ansible/worker.yaml --extra-vars "kubeadm_join_command='$KUBEADM_JOIN_COMMAND'"
-        env:
-          ANSIBLE_HOST_KEY_CHECKING: "False"
+          # Ansible master playbook writes this file to localhost
+          if [ -f /tmp/kubeadm_join_command.sh ]; then
+            JOIN_CMD=$(cat /tmp/kubeadm_join_command.sh)
+            echo "JOIN_CMD=$JOIN_CMD" >> $GITHUB_OUTPUT
+            echo " Retrieved join command: $JOIN_CMD"
+          else
+            echo "Failed: /tmp/kubeadm_join_command.sh not found!"
+            exit 1
+          fi
 
-      - name: Verify Kubernetes cluster nodes are Ready
+      - name: Run Worker Playbook
         run: |
-          echo "Waiting for all Kubernetes nodes to be Ready..."
-          until ssh -i ~/.ssh/id_rsa ec2-user@$MASTER_IP "kubectl get nodes --no-headers | awk '{print \$2}' | grep -q 'Ready'" ; do
-            echo "Nodes not Ready yet, waiting 10s..."
+          ansible-playbook -i inventory k8Cluster/Ansible/worker.yaml \
+            --extra-vars "kubeadm_join_command='${{ steps.get_join_cmd.outputs.JOIN_CMD }}'"
+
+      - name: Verify Kubernetes Nodes are Ready
+        run: |
+          echo "Waiting for all nodes to be Ready..."
+          until ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ec2-user@$MASTER_IP \
+            "kubectl get nodes" | grep -q "Ready"; do
+            echo "⏳ Nodes not ready yet, waiting 10s..."
             sleep 10
           done
-          echo "All nodes are Ready!"
-        env:
-          ANSIBLE_HOST_KEY_CHECKING: "False"
+          echo "✅ All nodes are Ready!"
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ec2-user@$MASTER_IP "kubectl get nodes"
