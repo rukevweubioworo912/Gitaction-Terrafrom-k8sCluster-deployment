@@ -1,4 +1,4 @@
-name: Build, Push Docker Image & Ansible Deploy
+name: Build, Push Docker Image & Deploy Kubernetes Cluster
 
 on:
   push:
@@ -26,15 +26,11 @@ jobs:
 
       - name: Build Docker image
         working-directory: ./app
-        run: |
-          docker build -t $DOCKER_IMAGE:latest .
+        run: docker build -t $DOCKER_IMAGE:latest .
 
-      - name: Tag Docker image for Docker Hub
+      - name: Tag and Push Docker image
         run: |
           docker tag $DOCKER_IMAGE:latest $DOCKER_USERNAME/$DOCKER_IMAGE:latest
-
-      - name: Push image to Docker Hub
-        run: |
           docker push $DOCKER_USERNAME/$DOCKER_IMAGE:latest
 
   deploy-terraform:
@@ -48,23 +44,23 @@ jobs:
       master_ip: ${{ steps.tf_output.outputs.master_ip }}
       worker_ips: ${{ steps.tf_output.outputs.worker_ips }}
     steps:
-      - name: Checkout code
+      - name: Checkout Terraform code
         uses: actions/checkout@v4
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
       - name: Terraform Init
-        working-directory: ./Terraform
+        working-directory: ./k8Cluster/Terraform
         run: terraform init
 
       - name: Terraform Apply
-        working-directory: ./Terraform
+        working-directory: ./k8Cluster/Terraform
         run: terraform apply -auto-approve
 
       - name: Get EC2 Public IPs
         id: tf_output
-        working-directory: ./Terraform
+        working-directory: ./k8Cluster/Terraform
         run: |
           echo "master_ip=$(terraform output -raw master_public_ip)" >> "$GITHUB_OUTPUT"
           echo "worker_ips=$(terraform output -json worker_public_ips)" >> "$GITHUB_OUTPUT"
@@ -115,17 +111,18 @@ jobs:
       - name: Run Ansible Playbook on Master
         id: run_master
         run: |
-          ansible-playbook -i inventory ./ansible/master.yaml --extra-vars "output_file=/tmp/master_output.json"
+          ansible-playbook -i inventory ./k8Cluster/ansible/master.yaml --extra-vars "output_file=/tmp/master_output.json"
         env:
           ANSIBLE_HOST_KEY_CHECKING: "False"
 
-      - name: Get Output from Master
+      - name: Get Join Command from Master
         id: master_output
         run: |
-          MASTER_JOIN=$(ssh -i ~/.ssh/id_rsa ec2-user@${{ needs.deploy-terraform.outputs.master_ip }} "cat /tmp/master_output.json")
+          MASTER_JOIN=$(ssh -i ~/.ssh/id_rsa ec2-user@${{ needs.deploy-terraform.outputs.master_ip }} "cat /tmp/kubeadm_join.sh")
           echo "master_join=$MASTER_JOIN" >> "$GITHUB_OUTPUT"
 
       - name: Run Ansible Playbook on Workers
-        run: ansible-playbook -i inventory ./ansible/workers.yaml --extra-vars "master_join=${{ steps.master_output.outputs.master_join }}"
+        run: |
+          ansible-playbook -i inventory ./k8Cluster/ansible/workers.yaml --extra-vars "master_join=${{ steps.master_output.outputs.master_join }}"
         env:
           ANSIBLE_HOST_KEY_CHECKING: "False"

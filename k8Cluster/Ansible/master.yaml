@@ -33,6 +33,11 @@
         curl -O https://raw.githubusercontent.com/projectcalico/calico/v3.29.0/manifests/calico.yaml
         kubectl apply -f calico.yaml
 
+    - name: Wait for Kubernetes API server
+      become_user: ec2-user
+      shell: |
+        until kubectl get nodes; do sleep 5; done
+
     - name: Get kubeadm join command
       shell: kubeadm token create --print-join-command
       register: join_cmd
