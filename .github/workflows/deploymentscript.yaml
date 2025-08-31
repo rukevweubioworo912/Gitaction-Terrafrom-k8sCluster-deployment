@@ -124,9 +124,9 @@ jobs:
           echo "inventory = ./inventory" >> ansible.cfg
 
 
-      - name: Install Python 3.8 on all nodes
-        run: |
-          ansible all -i inventory -m raw -a "sudo yum install -y python38" -u ec2-user --private-key ~/.ssh/id_rsa
+     - name: Install Python 3.8 on all nodes
+       run: |
+          ansible all -i inventory -m raw -a "sudo amazon-linux-extras enable python3.8 && sudo yum install -y python3.8" -u ec2-user --private-key ~/.ssh/id_rsa
 
       - name: Update inventory to use Python 3.8
         run: |
