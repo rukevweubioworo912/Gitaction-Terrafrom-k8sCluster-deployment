@@ -23,19 +23,18 @@ jobs:
           ssh-keyscan $MASTER_IP $(echo "$WORKER_IPS" | jq -r '.[]') >> ~/.ssh/known_hosts
           chmod 644 ~/.ssh/known_hosts
 
-      - name: Copy master setup script from ansible folder
+      - name: Copy master.sh to runner
         run: |
-          ls -la
           cp k8Cluster/Ansible/master.sh ./master.sh
           chmod +x ./master.sh
 
-      - name: Run master setup on EC2
+      - name: Run master.sh on master node
         run: |
           scp -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ./master.sh ec2-user@$MASTER_IP:/home/ec2-user/master.sh
           ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ec2-user@$MASTER_IP \
             "chmod +x ~/master.sh && sudo ~/master.sh"
 
-      - name: Retrieve join command from master
+      - name: Retrieve kubeadm join command
         id: get_join
         run: |
           JOIN_CMD=$(ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ec2-user@$MASTER_IP \
@@ -45,14 +44,14 @@ jobs:
             exit 1
           fi
           echo "JOIN_CMD=$JOIN_CMD" >> $GITHUB_OUTPUT
-          echo "✅ Retrieved join command: $JOIN_CMD"
+          echo "✅ Join command retrieved"
 
-      - name: Copy worker setup script from ansible folder
+      - name: Copy worker.sh to runner
         run: |
           cp k8Cluster/Ansible/worker.sh ./worker.sh
           chmod +x ./worker.sh
 
-      - name: Deploy and run worker setup on all workers
+      - name: Run worker.sh on all worker nodes
         run: |
           JOIN_CMD='${{ steps.get_join.outputs.JOIN_CMD }}'
           for ip in $(echo "$WORKER_IPS" | jq -r '.[]'); do
@@ -62,14 +61,13 @@ jobs:
               "chmod +x ~/worker.sh && ~/worker.sh '$JOIN_CMD'"
           done
 
-      - name: Verify Kubernetes cluster nodes
+      - name: Verify cluster status
         run: |
           echo "⏳ Waiting for all nodes to be Ready..."
-          MASTER_IP="$MASTER_IP"
           until ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ec2-user@$MASTER_IP \
-            "kubectl get nodes 2>/dev/null | grep -q 'Ready'" ; do
-            echo "👉 Nodes not ready yet... waiting 10s"
+            "kubectl get nodes 2>/dev/null | grep -q 'Ready'"; do
             sleep 10
+            echo "Still waiting..."
           done
-          echo "✅ Cluster is ready!"
+          echo "✅ Cluster is Ready!"
           ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ec2-user@$MASTER_IP "kubectl get nodes"

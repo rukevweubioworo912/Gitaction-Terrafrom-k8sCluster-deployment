@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "🚀 Starting Worker Node Setup"
+echo "🚀 Setting up Kubernetes Worker Node"
 
 # Install Docker
 sudo yum update -y
@@ -10,7 +10,7 @@ sudo systemctl enable docker --now
 
 # Disable SELinux
 sudo setenforce 0 || true
-sudo sed -i 's/^SELINUX=enforcing$/SELINUX=permissive/' /etc/selinux/config || true
+sudo sed -i 's/^SELINUX=enforcing$/SELINUX=permissive/' /etc/selinux/config
 
 # Add Kubernetes repo
 cat <<EOF | sudo tee /etc/yum.repos.d/kubernetes.repo
@@ -27,19 +27,19 @@ EOF
 sudo yum install -y kubelet kubeadm --disableexcludes=kubernetes
 sudo systemctl enable kubelet --now
 
-# Wait for join command to be passed
+# Get join command from argument
 JOIN_CMD="\$1"
 if [ -z "\$JOIN_CMD" ]; then
   echo "❌ No join command provided!"
   exit 1
 fi
 
-# Join the cluster (only if not already joined)
+# Join only if not already joined
 if [ ! -f /etc/kubernetes/kubelet.conf ]; then
   echo "👉 Joining cluster with: \$JOIN_CMD"
   eval "\$JOIN_CMD"
 else
-  echo "ℹ️ Already joined to cluster."
+  echo "ℹ️ Already joined to the cluster."
 fi
 
 echo "✅ Worker node joined successfully!"
