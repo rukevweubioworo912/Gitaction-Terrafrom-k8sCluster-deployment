@@ -123,6 +123,16 @@ jobs:
           echo "host_key_checking = False" >> ansible.cfg
           echo "inventory = ./inventory" >> ansible.cfg
 
+
+      - name: Install Python 3.8 on all nodes
+        run: |
+          ansible all -i inventory -m raw -a "sudo yum install -y python38" -u ec2-user --private-key ~/.ssh/id_rsa
+
+      - name: Update inventory to use Python 3.8
+        run: |
+           sed -i 's|ansible_ssh_private_key_file|ansible_python_interpreter=/usr/bin/python3.8 ansible_ssh_private_key_file|' inventory
+
+
       - name: Run Ansible Playbook on Master
         id: run_master
         run: |
