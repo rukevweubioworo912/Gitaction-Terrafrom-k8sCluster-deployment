@@ -181,14 +181,3 @@ resource "aws_instance" "k8s_worker" {
   }
 }
 
-output "master_public_ip" {
-  value = aws_instance.k8s_master.public_ip
-}
-
-output "worker_public_ips" {
-  value = [for i in aws_instance.k8s_worker : i.public_ip]
-}
-
-output "vpc_id" {
-  value = aws_vpc.main_vpc.id
-}
