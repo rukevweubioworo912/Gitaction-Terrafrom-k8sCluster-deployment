@@ -58,6 +58,11 @@ jobs:
         working-directory: ./k8Cluster/Terraform
         run: |
           terraform import aws_key_pair.mykeyname mykeyname || echo "Key pair already imported"
+      - name: Terraform Import IAM Instance Profile
+        working-directory: ./k8Cluster/Terraform
+        run: |
+            terraform import aws_iam_instance_profile.ec2_cloudwatch_profile ec2_cloudwatch_profile || echo "Instance profile already imported"
+
 
       - name: Terraform Import IAM Role
         working-directory: ./k8Cluster/Terraform
