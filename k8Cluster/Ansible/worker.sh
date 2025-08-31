@@ -28,16 +28,16 @@ sudo yum install -y kubelet kubeadm --disableexcludes=kubernetes
 sudo systemctl enable kubelet --now
 
 # Get join command from argument
-JOIN_CMD="\$1"
-if [ -z "\$JOIN_CMD" ]; then
+JOIN_CMD="$1"
+if [ -z "$JOIN_CMD" ]; then
   echo "❌ No join command provided!"
   exit 1
 fi
 
 # Join only if not already joined
 if [ ! -f /etc/kubernetes/kubelet.conf ]; then
-  echo "👉 Joining cluster with: \$JOIN_CMD"
-  eval "\$JOIN_CMD"
+  echo "👉 Joining cluster with: $JOIN_CMD"
+  eval "$JOIN_CMD"
 else
   echo "ℹ️ Already joined to the cluster."
 fi
