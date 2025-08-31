@@ -58,11 +58,11 @@ jobs:
         working-directory: ./k8Cluster/Terraform
         run: |
           terraform import aws_key_pair.mykeyname mykeyname || echo "Key pair already imported"
+
       - name: Terraform Import IAM Instance Profile
         working-directory: ./k8Cluster/Terraform
         run: |
-            terraform import aws_iam_instance_profile.ec2_cloudwatch_profile ec2_cloudwatch_profile || echo "Instance profile already imported"
-
+          terraform import aws_iam_instance_profile.ec2_cloudwatch_profile ec2_cloudwatch_profile || echo "Instance profile already imported"
 
       - name: Terraform Import IAM Role
         working-directory: ./k8Cluster/Terraform
@@ -95,7 +95,7 @@ jobs:
       - name: Install Ansible and Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y ansible sshpass jq
+          sudo apt-get install -y ansible sshpass jq netcat
           pip install boto3
 
       - name: Add SSH Key
@@ -103,9 +103,6 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-
-      - name: Wait for SSH to be Ready
-        run: sleep 30
 
       - name: Create Inventory for Master and Workers
         run: |
@@ -123,6 +120,21 @@ jobs:
           echo "host_key_checking = False" >> ansible.cfg
           echo "inventory = ./inventory" >> ansible.cfg
 
+      - name: Wait for all nodes SSH to be ready
+        run: |
+          # Wait for worker nodes
+          for ip in $(echo '${{ needs.deploy-terraform.outputs.worker_ips }}' | jq -r '.[]'); do
+            echo "Waiting for SSH on $ip..."
+            until nc -z -v -w30 $ip 22; do
+              echo "Waiting for $ip SSH..."
+              sleep 5
+            done
+          done
+          # Wait for master node
+          until nc -z -v -w30 ${{ needs.deploy-terraform.outputs.master_ip }} 22; do
+            echo "Waiting for master SSH..."
+            sleep 5
+          done
 
       - name: Install Python 3.8 on all nodes
         run: |
@@ -131,7 +143,6 @@ jobs:
       - name: Update inventory to use Python 3.8
         run: |
            sed -i 's|ansible_ssh_private_key_file|ansible_python_interpreter=/usr/bin/python3.8 ansible_ssh_private_key_file|' inventory
-
 
       - name: Run Ansible Playbook on Master
         id: run_master
@@ -148,6 +159,18 @@ jobs:
 
       - name: Run Ansible Playbook on Workers
         run: |
-          ansible-playbook -i inventory ./k8Cluster/Ansible/worker.yaml --extra-vars "master_join=${{ steps.master_output.outputs.master_join }}"
+          ansible-playbook -i inventory ./k8Cluster/Ansible/worker.yaml --extra-vars "master_join='${{ steps.master_output.outputs.master_join }}'"
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: "False"
+
+      - name: Verify Kubernetes cluster nodes are Ready
+        run: |
+          echo "Waiting for all Kubernetes nodes to be Ready..."
+          MASTER_IP=${{ needs.deploy-terraform.outputs.master_ip }}
+          until ssh -i ~/.ssh/id_rsa ec2-user@$MASTER_IP "kubectl get nodes --no-headers | awk '{print \$2}' | grep -q 'Ready'" ; do
+            echo "Nodes not Ready yet, waiting 10s..."
+            sleep 10
+          done
+          echo "All nodes are Ready!"
         env:
           ANSIBLE_HOST_KEY_CHECKING: "False"
