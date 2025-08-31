@@ -75,7 +75,7 @@ resource "aws_security_group" "k8s_cluster_sg" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["YOUR_PUBLIC_IP/32"]
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   ingress {
@@ -123,7 +123,7 @@ data "aws_ami" "amazon_linux" {
 
 resource "aws_key_pair" "mykeyname" {
   key_name   = "mykeyname"
-  public_key = file("~/.ssh/id_rsa.pub")
+  public_key = file("id_rsa.pub")
 }
 
 resource "aws_iam_role" "ec2_cloudwatch_role" {
