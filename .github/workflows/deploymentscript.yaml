@@ -80,97 +80,97 @@ jobs:
           echo "master_ip=$(terraform output -raw master_public_ip)" >> "$GITHUB_OUTPUT"
           echo "worker_ips=$(terraform output -json worker_public_ips)" >> "$GITHUB_OUTPUT"
 
-  ansible_deploy:
-    needs: deploy-terraform
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout source code
-        uses: actions/checkout@v3
+  # ansible_deploy:
+  #   needs: deploy-terraform
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Checkout source code
+  #       uses: actions/checkout@v3
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.x'
+  #     - name: Set up Python
+  #       uses: actions/setup-python@v5
+  #       with:
+  #         python-version: '3.x'
 
-      - name: Install Ansible and Dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ansible sshpass  jq netcat-openbsd
-          pip install boto3
+  #     - name: Install Ansible and Dependencies
+  #       run: |
+  #         sudo apt-get update
+  #         sudo apt-get install -y ansible sshpass  jq netcat-openbsd
+  #         pip install boto3
 
-      - name: Add SSH Key
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
+  #     - name: Add SSH Key
+  #       run: |
+  #         mkdir -p ~/.ssh
+  #         echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+  #         chmod 600 ~/.ssh/id_rsa
 
-      - name: Create Inventory for Master and Workers
-        run: |
-          echo "[master]" > inventory
-          echo "${{ needs.deploy-terraform.outputs.master_ip }} ansible_user=ec2-user ansible_ssh_private_key_file=~/.ssh/id_rsa" >> inventory
-          echo "" >> inventory
-          echo "[workers]" >> inventory
-          for ip in $(echo '${{ needs.deploy-terraform.outputs.worker_ips }}' | jq -r '.[]'); do
-            echo "$ip ansible_user=ec2-user ansible_ssh_private_key_file=~/.ssh/id_rsa" >> inventory
-          done
+  #     - name: Create Inventory for Master and Workers
+  #       run: |
+  #         echo "[master]" > inventory
+  #         echo "${{ needs.deploy-terraform.outputs.master_ip }} ansible_user=ec2-user ansible_ssh_private_key_file=~/.ssh/id_rsa" >> inventory
+  #         echo "" >> inventory
+  #         echo "[workers]" >> inventory
+  #         for ip in $(echo '${{ needs.deploy-terraform.outputs.worker_ips }}' | jq -r '.[]'); do
+  #           echo "$ip ansible_user=ec2-user ansible_ssh_private_key_file=~/.ssh/id_rsa" >> inventory
+  #         done
 
-      - name: Ansible Config
-        run: |
-          echo "[defaults]" > ansible.cfg
-          echo "host_key_checking = False" >> ansible.cfg
-          echo "inventory = ./inventory" >> ansible.cfg
+  #     - name: Ansible Config
+  #       run: |
+  #         echo "[defaults]" > ansible.cfg
+  #         echo "host_key_checking = False" >> ansible.cfg
+  #         echo "inventory = ./inventory" >> ansible.cfg
 
-      - name: Wait for all nodes SSH to be ready
-        run: |
-          # Wait for worker nodes
-          for ip in $(echo '${{ needs.deploy-terraform.outputs.worker_ips }}' | jq -r '.[]'); do
-            echo "Waiting for SSH on $ip..."
-            until nc -z -v -w30 $ip 22; do
-              echo "Waiting for $ip SSH..."
-              sleep 5
-            done
-          done
-          # Wait for master node
-          until nc -z -v -w30 ${{ needs.deploy-terraform.outputs.master_ip }} 22; do
-            echo "Waiting for master SSH..."
-            sleep 5
-          done
+  #     - name: Wait for all nodes SSH to be ready
+  #       run: |
+  #         # Wait for worker nodes
+  #         for ip in $(echo '${{ needs.deploy-terraform.outputs.worker_ips }}' | jq -r '.[]'); do
+  #           echo "Waiting for SSH on $ip..."
+  #           until nc -z -v -w30 $ip 22; do
+  #             echo "Waiting for $ip SSH..."
+  #             sleep 5
+  #           done
+  #         done
+  #         # Wait for master node
+  #         until nc -z -v -w30 ${{ needs.deploy-terraform.outputs.master_ip }} 22; do
+  #           echo "Waiting for master SSH..."
+  #           sleep 5
+  #         done
 
-      - name: Install Python 3.8 on all nodes
-        run: |
-          ansible all -i inventory -m raw -a "sudo amazon-linux-extras enable python3.8 && sudo yum install -y python3.8" -u ec2-user --private-key ~/.ssh/id_rsa
+  #     - name: Install Python 3.8 on all nodes
+  #       run: |
+  #         ansible all -i inventory -m raw -a "sudo amazon-linux-extras enable python3.8 && sudo yum install -y python3.8" -u ec2-user --private-key ~/.ssh/id_rsa
 
-      - name: Update inventory to use Python 3.8
-        run: |
-           sed -i 's|ansible_ssh_private_key_file|ansible_python_interpreter=/usr/bin/python3.8 ansible_ssh_private_key_file|' inventory
+  #     - name: Update inventory to use Python 3.8
+  #       run: |
+  #          sed -i 's|ansible_ssh_private_key_file|ansible_python_interpreter=/usr/bin/python3.8 ansible_ssh_private_key_file|' inventory
 
-      - name: Run Ansible Playbook on Master
-        id: run_master
-        run: |
-          ansible-playbook -i inventory ./k8Cluster/Ansible/master.yaml --extra-vars "output_file=/tmp/master_output.json"
-        env:
-          ANSIBLE_HOST_KEY_CHECKING: "False"
+  #     - name: Run Ansible Playbook on Master
+  #       id: run_master
+  #       run: |
+  #         ansible-playbook -i inventory ./k8Cluster/Ansible/master.yaml --extra-vars "output_file=/tmp/master_output.json"
+  #       env:
+  #         ANSIBLE_HOST_KEY_CHECKING: "False"
 
-      - name: Get Join Command from Master
-        id: master_output
-        run: |
-          MASTER_JOIN=$(ssh -i ~/.ssh/id_rsa ec2-user@${{ needs.deploy-terraform.outputs.master_ip }} "cat /tmp/kubeadm_join.sh")
-          echo "master_join=$MASTER_JOIN" >> "$GITHUB_OUTPUT"
+  #     - name: Get Join Command from Master
+  #       id: master_output
+  #       run: |
+  #         MASTER_JOIN=$(ssh -i ~/.ssh/id_rsa ec2-user@${{ needs.deploy-terraform.outputs.master_ip }} "cat /tmp/kubeadm_join.sh")
+  #         echo "master_join=$MASTER_JOIN" >> "$GITHUB_OUTPUT"
 
-      - name: Run Ansible Playbook on Workers
-        run: |
-          ansible-playbook -i inventory ./k8Cluster/Ansible/worker.yaml --extra-vars "master_join='${{ steps.master_output.outputs.master_join }}'"
-        env:
-          ANSIBLE_HOST_KEY_CHECKING: "False"
+  #     - name: Run Ansible Playbook on Workers
+  #       run: |
+  #         ansible-playbook -i inventory ./k8Cluster/Ansible/worker.yaml --extra-vars "master_join='${{ steps.master_output.outputs.master_join }}'"
+  #       env:
+  #         ANSIBLE_HOST_KEY_CHECKING: "False"
 
-      - name: Verify Kubernetes cluster nodes are Ready
-        run: |
-          echo "Waiting for all Kubernetes nodes to be Ready..."
-          MASTER_IP=${{ needs.deploy-terraform.outputs.master_ip }}
-          until ssh -i ~/.ssh/id_rsa ec2-user@$MASTER_IP "kubectl get nodes --no-headers | awk '{print \$2}' | grep -q 'Ready'" ; do
-            echo "Nodes not Ready yet, waiting 10s..."
-            sleep 10
-          done
-          echo "All nodes are Ready!"
-        env:
-          ANSIBLE_HOST_KEY_CHECKING: "False"
+  #     - name: Verify Kubernetes cluster nodes are Ready
+  #       run: |
+  #         echo "Waiting for all Kubernetes nodes to be Ready..."
+  #         MASTER_IP=${{ needs.deploy-terraform.outputs.master_ip }}
+  #         until ssh -i ~/.ssh/id_rsa ec2-user@$MASTER_IP "kubectl get nodes --no-headers | awk '{print \$2}' | grep -q 'Ready'" ; do
+  #           echo "Nodes not Ready yet, waiting 10s..."
+  #           sleep 10
+  #         done
+  #         echo "All nodes are Ready!"
+  #       env:
+  #         ANSIBLE_HOST_KEY_CHECKING: "False"
