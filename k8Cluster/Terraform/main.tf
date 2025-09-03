@@ -77,6 +77,25 @@ resource "aws_security_group" "k8s_cluster_sg" {
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
+  ingress {
+    from_port   = 9090
+    to_port     = 9090
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+ ingress {
+    from_port   = 3000
+    to_port     = 3000
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    from_port   = 9100
+    to_port     = 9100
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 
   ingress {
     from_port   = 6443
@@ -159,7 +178,8 @@ resource "aws_instance" "k8s_master" {
   subnet_id           = aws_subnet.master.id
   security_groups     = [aws_security_group.k8s_cluster_sg.id]
   iam_instance_profile = aws_iam_instance_profile.ec2_cloudwatch_profile.name
- user_data = file("${path.module}/k8Cluster/bashScript/cloudwatchscript.sh")
+  user_data = file("${path.module}/../bashScript/cloudwatchscript.sh")
+ 
   
  
 
@@ -176,7 +196,7 @@ resource "aws_instance" "k8s_worker" {
   subnet_id           = element([aws_subnet.worker1.id, aws_subnet.worker2.id], count.index)
   security_groups     = [aws_security_group.k8s_cluster_sg.id]
   iam_instance_profile = aws_iam_instance_profile.ec2_cloudwatch_profile.name
-  user_data = file("${path.module}/k8Cluster/bashScript/monitoring-stack.sh")
+  user_data = file("${path.module}/../bashScript/monitoring-stack.sh")
   
 
   tags = {
