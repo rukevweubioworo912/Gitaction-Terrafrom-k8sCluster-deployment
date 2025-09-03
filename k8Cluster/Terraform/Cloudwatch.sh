@@ -2,10 +2,10 @@
 # Update the OS
 sudo yum update -y
 
-# Install CloudWatch Agent
+
 sudo yum install -y amazon-cloudwatch-agent
 
-# Create CloudWatch agent configuration
+
 cat <<EOT > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
 {
   "metrics": {
