@@ -82,6 +82,7 @@ Terraform is responsible for provisioning the AWS infrastructure. This includes:
 The `terraform` directory contains the `.tf` files defining the AWS resources.
 
 ### Kubernetes Cluster Setup
+![kubernetes cluster setup](https://github.com/rukevweubioworo912/Gitaction-Terrafrom-k8sCluster-deployment/blob/main/k8Cluster/PICTURE/Screenshot%20(2111).png)
 
 Once the EC2 instances are provisioned, GitHub Actions executes Bash scripts on each instance to:
 
