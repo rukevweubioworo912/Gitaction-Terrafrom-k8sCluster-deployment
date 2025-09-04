@@ -90,6 +90,8 @@ Once the EC2 instances are provisioned, GitHub Actions executes Bash scripts on 
 3.  **Initialize Kubernetes Master:** The master node is initialized using `kubeadm init`.
 4.  **Join Worker Nodes:** Worker nodes join the cluster using the `kubeadm join` command provided by the master.
 
+![kubernetes cluster setup](https://github.com/rukevweubioworo912/Gitaction-Terrafrom-k8sCluster-deployment/blob/main/k8Cluster/PICTURE/Screenshot%20(2108).png)
+
 These scripts are typically located in the `scripts` directory of the project.
 
 ### Application Deployment
