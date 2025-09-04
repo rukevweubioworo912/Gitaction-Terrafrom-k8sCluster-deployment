@@ -68,6 +68,7 @@ Before you begin, ensure you have the following:
 ## Deployment Steps
 
 The entire deployment is automated via GitHub Actions. A push to the `main` branch (or a specified branch) will trigger the workflow.
+![Gitaction: Architecture Diagram](https://github.com/rukevweubioworo912/Gitaction-Terrafrom-k8sCluster-deployment/blob/main/k8Cluster/PICTURE/Generated%20Image%20September%2004%2C%202025%20-%208_49AM.jpeg)
 
 ### Terraform Deployment
 
