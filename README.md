@@ -99,6 +99,7 @@ Monitoring is crucial for understanding the health and performance of the cluste
 -   **CloudWatch Agent (Master Node):** A CloudWatch agent is installed on the master node to collect logs and metrics from the instance itself.
 -   **Prometheus (Worker Nodes):** Prometheus is deployed on the worker nodes to scrape metrics from the Kubernetes API server, Kubelet, Node Exporter, and other Kubernetes components.
 -   **Grafana (Worker Nodes):** Grafana is deployed on the worker nodes and configured to visualize the data collected by Prometheus. Dashboards will be pre-configured to display key cluster metrics.
+![DashBoard](https://github.com/rukevweubioworo912/Gitaction-Terrafrom-k8sCluster-deployment/blob/main/k8Cluster/PICTURE/newphoto/Screenshot%20(2124).png)
  
 ## Monitoring and Logging
 
@@ -137,13 +138,15 @@ You will need to access the public IP of one of your worker nodes (and the confi
     *   **Kubernetes Dashboard/API:** After deployment, you can configure `kubectl` locally to connect to your cluster.
     *   **Web Application:** Check the Kubernetes service of your web application for its exposed IP/DNS and port.
     *   **Grafana Dashboard:** Access Grafana via the public IP of one of your worker nodes and the configured NodePort (e.g., `http://<worker-node-public-ip>:<grafana-nodeport>`).
+  
+ ![Grafana Dashbaord](https://github.com/rukevweubioworo912/Gitaction-Terrafrom-k8sCluster-deployment/blob/main/k8Cluster/PICTURE/newphoto/Screenshot%20(2116).png)
 
-## Contributing
+ ![Grafana Dashbaord](https://github.com/rukevweubioworo912/Gitaction-Terrafrom-k8sCluster-deployment/blob/main/k8Cluster/PICTURE/newphoto/Screenshot%20(2119).png)
 
-Contributions are welcome! Please feel free to:
+ ![Grafana Dashbaord](https://github.com/rukevweubioworo912/Gitaction-Terrafrom-k8sCluster-deployment/blob/main/k8Cluster/PICTURE/newphoto/Screenshot%20(2121).png)
 
--   Fork the repository.
--   Create a new branch for your features or bug fixes.
--   Submit a pull request with a clear description of your changes.
+![Grafana Dashbaord](https://github.com/rukevweubioworo912/Gitaction-Terrafrom-k8sCluster-deployment/blob/main/k8Cluster/PICTURE/newphoto/Screenshot%20(2124).png)
+
+ 
 
 
