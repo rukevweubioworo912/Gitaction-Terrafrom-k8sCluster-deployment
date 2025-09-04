@@ -1,6 +1,5 @@
- Kubernetes Cluster Deployment on AWS with Terraform and GitHub Actions
-
-This project automates the deployment of a Kubernetes cluster on AWS using Terraform, configures monitoring with Prometheus and Grafana, and deploys a sample web application, all orchestrated through GitHub Actions.
+###  Kubernetes Cluster Deployment on AWS with Terraform and GitHub Actions
+This project demonstrates how to automate Kubernetes cluster deployment using Terraform and GitHub Actions in a GitOps-driven workflow. It brings together Infrastructure as Code (IaC) and CI/CD to provision, configure, and manage Kubernetes environments seamlessly.
 
 ## Table of Contents
 
@@ -39,7 +38,7 @@ The architecture comprises the following components:
 -   **Bash Scripts:** Custom scripts for installing Docker and Kubernetes components on the EC2 instances.
 
 Here's a high-level diagram of the architecture:
-![Kubernetes Cluster on AWS: Architecture Diagram](https://source.unsplash.com/random/?kubernetes-aws-architecture-diagram)
+![Kubernetes Cluster on AWS: Architecture Diagram](https://github.com/rukevweubioworo912/Gitaction-Terrafrom-k8sCluster-deployment/blob/main/k8Cluster/PICTURE/Generated%20Image%20September%2004%2C%202025%20-%208_49AM.jpeg)
 
 ## Features
 
