@@ -23,7 +23,10 @@ This project demonstrates how to automate Kubernetes cluster deployment using Te
 This project provides an automated solution to set up a Kubernetes cluster on AWS. It leverages Terraform for infrastructure provisioning, GitHub Actions for continuous integration and continuous deployment (CI/CD), and custom Bash scripts for Kubernetes and Docker installation. The cluster consists of three EC2 instances: one master node and two worker nodes. A sample web application is deployed, and the cluster is monitored using CloudWatch, Prometheus, and Grafana.
 
 ## Architecture
-![k8CLUSTER]
+Here's a high-level diagram of the architecture:
+![Kubernetes Cluster on AWS: Architecture Diagram](https://github.com/rukevweubioworo912/Gitaction-Terrafrom-k8sCluster-deployment/blob/main/k8Cluster/PICTURE/Generated%20Image%20September%2004%2C%202025%20-%208_49AM.jpeg)
+
+![k8CLUSTER](https://github.com/rukevweubioworo912/Gitaction-Terrafrom-k8sCluster-deployment/blob/main/k8Cluster/PICTURE/newphoto/Screenshot%20(2140).png)
 
 The architecture comprises the following components:
 
@@ -36,9 +39,6 @@ The architecture comprises the following components:
 -   **Prometheus:** Deployed on worker nodes to collect metrics from the Kubernetes cluster.
 -   **Grafana:** Deployed on worker nodes for visualizing the metrics collected by Prometheus.
 -   **Bash Scripts:** Custom scripts for installing Docker and Kubernetes components on the EC2 instances.
-
-Here's a high-level diagram of the architecture:
-![Kubernetes Cluster on AWS: Architecture Diagram](https://github.com/rukevweubioworo912/Gitaction-Terrafrom-k8sCluster-deployment/blob/main/k8Cluster/PICTURE/Generated%20Image%20September%2004%2C%202025%20-%208_49AM.jpeg)
 
 ## Features
 
@@ -66,7 +66,6 @@ Before you begin, ensure you have the following:
 6.  **`kubectl` Installed (for local interaction with the cluster):** If you plan to interact with the Kubernetes cluster directly from your local machine.
 
 ## Deployment Steps
-
 The entire deployment is automated via GitHub Actions. A push to the `main` branch (or a specified branch) will trigger the workflow.
 ![Gitaction: Architecture Diagram](https://github.com/rukevweubioworo912/Gitaction-Terrafrom-k8sCluster-deployment/blob/main/k8Cluster/PICTURE/Screenshot%20(2102).png)
 
@@ -103,6 +102,7 @@ After the Kubernetes cluster is healthy, a sample web application is deployed. T
 2.  **Pushing Images to a Registry:** The Docker image is pushed to a container registry (e.g., Docker Hub, Amazon ECR).
 3.  **Applying Kubernetes Manifests:** Kubernetes deployment and service YAML files (e.g., `app/deployment.yaml`, `app/service.yaml`) are applied to the cluster using `kubectl`.
 
+
 ### Monitoring Setup
 
 Monitoring is crucial for understanding the health and performance of the cluster and application.
@@ -110,12 +110,14 @@ Monitoring is crucial for understanding the health and performance of the cluste
 -   **CloudWatch Agent (Master Node):** A CloudWatch agent is installed on the master node to collect logs and metrics from the instance itself.
 -   **Prometheus (Worker Nodes):** Prometheus is deployed on the worker nodes to scrape metrics from the Kubernetes API server, Kubelet, Node Exporter, and other Kubernetes components.
 -   **Grafana (Worker Nodes):** Grafana is deployed on the worker nodes and configured to visualize the data collected by Prometheus. Dashboards will be pre-configured to display key cluster metrics.
-
+ 
 ## Monitoring and Logging
 
 -   **CloudWatch:** Provides basic infrastructure-level monitoring for the master EC2 instance. Logs can be streamed to CloudWatch Logs.
 -   **Prometheus:** Collects time-series data from various Kubernetes components. Accessible via a NodePort or Load Balancer.
 -   **Grafana:** Provides rich dashboards for visualizing Prometheus data. Accessible via a NodePort or Load Balancer.
+
+ ![Cloudwatch](https://github.com/rukevweubioworo912/Gitaction-Terrafrom-k8sCluster-deployment/blob/main/k8Cluster/PICTURE/newphoto/Screenshot%20(2134).png)
 
 You will need to access the public IP of one of your worker nodes (and the configured NodePort) to access the Grafana dashboard.
 
@@ -155,6 +157,4 @@ Contributions are welcome! Please feel free to:
 -   Create a new branch for your features or bug fixes.
 -   Submit a pull request with a clear description of your changes.
 
-## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
