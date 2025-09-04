@@ -1,8 +1,6 @@
 ###  Kubernetes Cluster Deployment on AWS with Terraform and GitHub Actions
 This project demonstrates how to automate Kubernetes cluster deployment using Terraform and GitHub Actions in a GitOps-driven workflow. It brings together Infrastructure as Code (IaC) and CI/CD to provision, configure, and manage Kubernetes environments seamlessly.
-
 ## Table of Contents
-
 - [Project Overview](#project-overview)
 - [Architecture](#architecture)
 - [Features](#features)
@@ -19,7 +17,6 @@ This project demonstrates how to automate Kubernetes cluster deployment using Te
 - [License](#license)
 
 ## Project Overview
-
 This project provides an automated solution to set up a Kubernetes cluster on AWS. It leverages Terraform for infrastructure provisioning, GitHub Actions for continuous integration and continuous deployment (CI/CD), and custom Bash scripts for Kubernetes and Docker installation. The cluster consists of three EC2 instances: one master node and two worker nodes. A sample web application is deployed, and the cluster is monitored using CloudWatch, Prometheus, and Grafana.
 
 ## Architecture
@@ -29,7 +26,6 @@ Here's a high-level diagram of the architecture:
 ![k8CLUSTER](https://github.com/rukevweubioworo912/Gitaction-Terrafrom-k8sCluster-deployment/blob/main/k8Cluster/PICTURE/newphoto/Screenshot%20(2140).png)
 
 The architecture comprises the following components:
-
 -   **AWS EC2 Instances:** Three instances (one master, two workers) to host the Kubernetes cluster.
 -   **Terraform:** Used to provision the EC2 instances, security groups, VPC, and other necessary AWS resources.
 -   **GitHub Actions:** Automates the entire deployment process, from infrastructure provisioning to application deployment and monitoring setup.
@@ -49,11 +45,13 @@ The architecture comprises the following components:
 -   **Comprehensive Monitoring:** Integration with CloudWatch, Prometheus, and Grafana for robust cluster and application monitoring.
 -   **Scalable:** The architecture can be extended to include more worker nodes if needed.
 -   **Idempotent Deployments:** Terraform ensures that subsequent deployments result in the same infrastructure state.
+  
+    ![Gitaction: Architecture Diagram](https://github.com/rukevweubioworo912/Gitaction-Terrafrom-k8sCluster-deployment/blob/main/k8Cluster/PICTURE/Screenshot%20(2102).png)
+
 
 ## Prerequisites
 
 Before you begin, ensure you have the following:
-
 1.  **AWS Account:** With appropriate permissions to create EC2 instances, VPCs, security groups, etc.
 2.  **AWS CLI Configured:** Ensure your local machine or GitHub Actions environment has AWS credentials configured.
 3.  **GitHub Repository:** This project should be hosted in a GitHub repository.
@@ -65,12 +63,7 @@ Before you begin, ensure you have the following:
 5.  **Terraform Installed (for local testing):** If you plan to run Terraform locally.
 6.  **`kubectl` Installed (for local interaction with the cluster):** If you plan to interact with the Kubernetes cluster directly from your local machine.
 
-## Deployment Steps
-The entire deployment is automated via GitHub Actions. A push to the `main` branch (or a specified branch) will trigger the workflow.
-![Gitaction: Architecture Diagram](https://github.com/rukevweubioworo912/Gitaction-Terrafrom-k8sCluster-deployment/blob/main/k8Cluster/PICTURE/Screenshot%20(2102).png)
-
 ### Terraform Deployment
-
 Terraform is responsible for provisioning the AWS infrastructure. This includes:
 
 -   **VPC and Subnets:** A dedicated Virtual Private Cloud for the cluster.
@@ -84,18 +77,14 @@ The `terraform` directory contains the `.tf` files defining the AWS resources.
 ![kubernetes cluster setup](https://github.com/rukevweubioworo912/Gitaction-Terrafrom-k8sCluster-deployment/blob/main/k8Cluster/PICTURE/Screenshot%20(2111).png)
 
 Once the EC2 instances are provisioned, GitHub Actions executes Bash scripts on each instance to:
-
 1.  **Install Docker:** The container runtime for Kubernetes.
 2.  **Install `kubeadm`, `kubelet`, and `kubectl`:** The essential Kubernetes components.
 3.  **Initialize Kubernetes Master:** The master node is initialized using `kubeadm init`.
 4.  **Join Worker Nodes:** Worker nodes join the cluster using the `kubeadm join` command provided by the master.
-
 ![kubernetes cluster setup](https://github.com/rukevweubioworo912/Gitaction-Terrafrom-k8sCluster-deployment/blob/main/k8Cluster/PICTURE/Screenshot%20(2108).png)
 
 These scripts are typically located in the `scripts` directory of the project.
-
 ### Application Deployment
-
 After the Kubernetes cluster is healthy, a sample web application is deployed. This usually involves:
 
 1.  **Building Docker Images:** If your application needs to be containerized, GitHub Actions will build the Docker image.
